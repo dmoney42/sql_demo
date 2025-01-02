@@ -6,7 +6,7 @@ dotenv.config();
 
 
 const dbConfig: mysql.PoolOptions = {
-    host: "localhost",
+    host: process.env.DATABASE_HOST,
     user: "mysql_demo",
     password: "FyKXr2Jubdk!y_Wy",
     database: "mysql_demo",
@@ -14,6 +14,16 @@ const dbConfig: mysql.PoolOptions = {
     connectionLimit: 10,
     queueLimit: 0,
 }
+
+console.log("Environmental Variables:",{
+
+    host: process.env.DATABASE_HOST,
+    user: process.env.DATABASE_USERNAME,
+    password: process.env.DATABASE_USER_PASSWORD,
+    database: process.env.DATABASE_NAME,
+}
+
+);
 
 //create the connection pool
 let pool: mysql.Pool | null = null;
