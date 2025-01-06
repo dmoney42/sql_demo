@@ -3,6 +3,7 @@ import {getDatabasePool} from './db';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { table } from 'console';
+//import { table } from 'console';
 dotenv.config();
 
 
@@ -12,6 +13,26 @@ app.use(express.json());
 
 // Enable CORS for all routes (for development - IMPORTANT)
 app.use(cors());
+
+startServer();
+
+async function startServer(){
+
+    try {
+        const pool = await getDatabasePool()
+        if(!pool){
+            throw new Error("Database pool not initialized");
+            return;
+        }
+        await pool.query('SELECT 1');
+        console.log("Database connection verified the server started");
+
+    } catch (error) {
+        console.error("Error starting the server:", error);
+    }
+
+    
+}
 
 
 //sanatize the table name
@@ -28,59 +49,121 @@ function sanitizeTableName(tableName: string): string | null{
 
 //sanitizeTableName("dmoney42$");
 
-startServer();
 
-async function startServer(){
+async function handleCreateTable(request: Request, response: Response): Promise<void>{
+    //we have to test the connection to the database every time
+    console.log("Received payload on backend:", request.body);
 
     try {
-        const pool = await getDatabasePool()
+        const pool = await getDatabasePool();
         if(!pool){
-            throw new Error("Database pool not initialized");
+            response.status(500).send('Database connection not established');
+            return;
+        }else{
+            console.log("We received your request to connect to the database!");
         }
-        await pool.query('SELECT 1');
-        console.log("Database connection verified the server started");
 
-    } catch (error) {
-        console.error("Error starting the server:", error);
-    }
-
-
-   
-
-
- //   app.post('/api/createTable',handleCreateTable);
-
-    
-}
-    
-
-/*
-app.post('/api/createTable', async(request, response)=>{
-    try {
-        
+         //sandbox thinking
+        //const tableName = pool. excute query(request body tableName)
+        //const sql = create table if not exists ${tableName} (placeholder INT)
         const tableName = sanitizeTableName(request.body.tableName);
-        console.log("We recevied your request from the client to create a table named " + tableName);
+        console.log("The sanitized table name comes back as: " + tableName);
+        if(!tableName){
+            console.log("The table name did not come back sanitized!");
+            response.status(400).json({ message: 'Invalid table name. Only alphanumeric characters and underscores are allowed.' });
+            return;
+        }
+        console.log("We sanitized the table name: " + tableName);       
 
-       /
-        if(!tableName) {
-            return response.status(400).json({message: 'Invalid table name. Only alphanumeric characters and underscores are allowed.'});
+        /*
+          check if table exists first
+          * store default sql query with the table name the customer enters into a variable
+          * use the pool variable to execute the query and check for the table name the user entered
+          * if there is then the rows should be stored in a variable called rows
+          * use if statement to check if there are any rows, if so then return response that table exitst
+         */
+          const checkTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND LOWER(table_name) = ?`;
+      
+          const [rows] = await pool.query(checkTableQuery,[tableName.toLowerCase()]);
+          console.log("Query executed to check if table exists: ", checkTableQuery);      
+          console.log("After we checked the table query we got: " + JSON.stringify(rows));
+        
+          
+          if (Array.isArray(rows) && rows.length > 0) {
+            console.log(`The table ${tableName} already exists.`);
+            response.status(400).json({ message: `Table ${tableName} already exists.` });
+            return;
         }
+          
             
-        
-        
-        if(!dbpool){
-            return response.status(500).send('Database connection not established');
-        }
-        
-        
-       // const sql = `CREATE TABLE IF NOT EXISTS ${tableName}`
-        
+
+
+        //EXECUTE THE QUERY after sanitizing the table name
+        const createTableQuery = `CREATE TABLE IF NOT EXISTS \`${tableName}\` (
+                                                                                customer_id INT PRIMARY KEY AUTO_INCREMENT,
+                                                                                first_name VARCHAR(255),
+                                                                                last_name VARCHAR(255),
+                                                                                email VARCHAR(255) UNIQUE,
+                                                                                city VARCHAR(255),
+                                                                                country VARCHAR(255)
+
+                                                                                )`;
+        const insertTableValuesQuery = `INSERT INTO \`${tableName}\` (first_name, last_name, email, city, country)
+        VALUES 
+        ('Alice', 'Smith', 'alice.smith@example.com', 'New York', 'USA'),
+        ('Bob', 'Johnson', 'bob.johnson@example.com', 'Los Angeles', 'USA')`;
+
+        await pool.query(createTableQuery);
+        await pool.query(insertTableValuesQuery);
+
+        console.log(`The table name ${tableName} was created successfully!`);
+        response.status(200).json({ message: `Table ${tableName} created successfully.` });
+
 
     } catch (error) {
-        console.log("Theres an error in the post request of api/createTable" + error);
+        if (error instanceof Error) {
+            console.error("Error in handleCreateTable:", error.message);
+            response.status(500).json({ message: 'An error occurred while creating the table.', error: error.message });
+        } else {
+            console.error("Unknown error in handleCreateTable:", error);
+            response.status(500).json({ message: 'An unknown error occurred while creating the table.' });
+        }
+
     }
-});
-*/
+}
+
+
+async function handleGetTableData(request: Request, response: Response): Promise<void>{
+    console.log("You are inside the handleGetTableData function");
+    const {tableName} = request.query;
+
+    if (!tableName || typeof tableName != 'string'){
+        response.status(500).json({message: "Invalid table name"});
+    }
+
+    try {
+        const pool = await getDatabasePool();
+        const query = `SELECT * FROM \`${tableName}\``;
+       const [rows] = await pool.query(query);
+       response.status(200).json(rows);
+    } catch (error) {
+        response.status(500).json({message: "An error occurred when we queried our table."});
+    }
+   
+}
+
+
+
+// All route handlers go below here
+app.post('/api/createTable',handleCreateTable);
+
+app.get('/api/getTableData',handleGetTableData);
+
+app.use(cors({
+    origin: 'http://localhost:8080', // Replace with your frontend's URL
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type'],
+}));
 
 app.get('/', (request, response) => {
     response.send('Hello');
