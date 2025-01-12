@@ -63,9 +63,7 @@ async function handleCreateTable(request: Request, response: Response): Promise<
             console.log("We received your request to connect to the database!");
         }
 
-         //sandbox thinking
-        //const tableName = pool. excute query(request body tableName)
-        //const sql = create table if not exists ${tableName} (placeholder INT)
+        
         const tableName = sanitizeTableName(request.body.tableName);
         console.log("The sanitized table name comes back as: " + tableName);
         if(!tableName){
@@ -111,7 +109,10 @@ async function handleCreateTable(request: Request, response: Response): Promise<
         const insertTableValuesQuery = `INSERT INTO \`${tableName}\` (first_name, last_name, email, city, country)
         VALUES 
         ('Alice', 'Smith', 'alice.smith@example.com', 'New York', 'USA'),
-        ('Bob', 'Johnson', 'bob.johnson@example.com', 'Los Angeles', 'USA')`;
+        ('Bob', 'Johnson', 'bob.johnson@example.com', 'Los Angeles', 'USA'),
+        ('John', 'Doe', 'john.doe@example.com', 'Chicago', 'USA'),
+        ('Emily', 'Brown', 'emily.brown@example.com', 'Houston', 'USA'),
+        ('Michael', 'Williams', 'michael.williams@example.com', 'San Francisco', 'USA')`;
 
         await pool.query(createTableQuery);
         await pool.query(insertTableValuesQuery);
@@ -153,11 +154,48 @@ async function handleGetTableData(request: Request, response: Response): Promise
 }
 
 
+const handleAlterTable = async (request: Request, response: Response): Promise<void> => {
+    console.log("We received your request to alter the table!");
+    const {tableName} = request.body;
+    console.log("The table you requested to alter is: " + JSON.stringify(tableName));
+    if(!tableName || typeof tableName !== 'string'){
+        response.status(400).json({message: "Invalid table name in your alter table request"});
+        return;
+    }
+    //next we connect to the database using trycath
+
+    try {
+        console.log("You are inside the try block for alter table");
+        const pool = await getDatabasePool();
+        if(!pool){
+            throw new Error("Database pool not initialized");
+            return;
+        }
+        console.log("We got a database pool");
+        const query1 = `UPDATE \`${tableName}\` 
+                       SET first_name = 'Updated First Name', 
+                       last_name = 'Updated Country', 
+                       city = 'Updated City'
+                       WHERE city = 'New York';`;
+
+        pool.query(query1);
+
+        const query2 = `SELECT * FROM \`${tableName}\`;`;
+        const[rows] = await pool.query(query2);
+        console.log("The contents of the rows object is: " + JSON.stringify(rows));
+        response.status(200).json(rows);
+    } catch (error) {
+        response.status(500).json({message: 'An error occurred while altering the table data.'});
+    }
+};
+
 
 // All route handlers go below here
 app.post('/api/createTable',handleCreateTable);
 
 app.get('/api/getTableData',handleGetTableData);
+
+app.put('/api/alterTableData',handleAlterTable);
 
 app.use(cors({
     origin: 'http://localhost:8080', // Replace with your frontend's URL

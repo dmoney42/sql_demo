@@ -33,7 +33,7 @@ function App() {
             const data = await response.json();
             //2 types of messages you can display from the server response
             console.warn("Server returned an error:", data);
-            console.error("we did got a reponse from the server here is the error:", data);
+            console.error("we did get a response from the server. Here is the error:", data);
             return;
           }
 
@@ -45,6 +45,29 @@ function App() {
         } catch (error) {
            console.log("There has been an error: " + error);
         }
+    };
+
+    const handleAlterTable = async () =>{
+         try {
+          const response = await fetch('http://localhost:8080/api/alterTableData',{
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tableName}),
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            //2 types of messages you can display from the server response
+            console.warn("Server returned an error:", data);
+            console.error("we did get a response from the server to alter the table. Here is the error:", data);
+            return;
+          }
+          
+           //Now fetch the table
+           fetchCreateTable();
+         } catch (error) {
+            console.log("There has been an error with your alter request: " + error);
+         }
     };
 
 
@@ -103,6 +126,33 @@ function App() {
                     </tbody>
                 </table>
             )}
+
+      <h1>Alter Table</h1>    
+      <p>Click the button below to alter the table's data</p>
+      <button onClick={handleAlterTable}>Alter</button> 
+
+      {tableData.length > 0 && (
+                <table border="1" style={{ marginTop: '20px', width: '100%' }}>
+                    <thead>
+                        <tr>
+                            {/* Dynamically render column headers */}
+                            {Object.keys(tableData[0]).map((key) => (
+                                <th key={key}>{key}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {/* Dynamically render rows */}
+                        {tableData.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                                {Object.values(row).map((value, colIndex) => (
+                                    <td key={colIndex}>{value}</td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}      
 
     </>
   )
