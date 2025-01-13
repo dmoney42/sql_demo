@@ -112,7 +112,12 @@ async function handleCreateTable(request: Request, response: Response): Promise<
         ('Bob', 'Johnson', 'bob.johnson@example.com', 'Los Angeles', 'USA'),
         ('John', 'Doe', 'john.doe@example.com', 'Chicago', 'USA'),
         ('Emily', 'Brown', 'emily.brown@example.com', 'Houston', 'USA'),
-        ('Michael', 'Williams', 'michael.williams@example.com', 'San Francisco', 'USA')`;
+        ('Michael', 'Williams', 'michael.williams@example.com', 'San Francisco', 'USA'),
+        ('Sophie', 'Wilson', 'sophie.wilson@example.com', 'Toronto', 'Canada'),
+        ('James', 'Taylor', 'james.taylor@example.com', 'London', 'UK'),
+        ('Minjun', 'Kim', 'minjun.kim@example.com', 'Seoul', 'Korea'),
+        ('Charlotte', 'Evans', 'charlotte.evans@example.com', 'Vancouver', 'Canada'),
+        ('Henry', 'Walker', 'henry.walker@example.com', 'Manchester', 'UK')`;
 
         await pool.query(createTableQuery);
         await pool.query(insertTableValuesQuery);
@@ -178,7 +183,7 @@ const handleAlterTable = async (request: Request, response: Response): Promise<v
                        city = 'Updated City'
                        WHERE city = 'New York';`;
 
-        pool.query(query1);
+        await pool.query(query1);
 
         const query2 = `SELECT * FROM \`${tableName}\`;`;
         const[rows] = await pool.query(query2);
@@ -189,6 +194,29 @@ const handleAlterTable = async (request: Request, response: Response): Promise<v
     }
 };
 
+const handleGroupByCountry = async (request: Request, response: Response): Promise<void> => {
+    const {tableName} = request.query;
+    console.log("We received your request to group the table by country" + JSON.stringify(tableName));
+
+    try {
+        const pool = await getDatabasePool();
+        if(!pool){
+            console.log("The database is not initizlied");
+        }
+
+        const query = `
+            SELECT country, COUNT(*) AS customer_count
+            FROM \`${tableName}\`
+            GROUP BY country;`;
+
+        const [rows] = await pool.query(query);
+        console.log("The contents of the group by country table is: " + JSON.stringify(rows));
+        response.status(200).json(rows);
+    } catch (error) {
+        console.log("There was an error while grouping by country " + error);
+    }
+};
+
 
 // All route handlers go below here
 app.post('/api/createTable',handleCreateTable);
@@ -196,6 +224,8 @@ app.post('/api/createTable',handleCreateTable);
 app.get('/api/getTableData',handleGetTableData);
 
 app.put('/api/alterTableData',handleAlterTable);
+
+app.get('/api/groupByCountry',handleGroupByCountry);
 
 app.use(cors({
     origin: 'http://localhost:8080', // Replace with your frontend's URL

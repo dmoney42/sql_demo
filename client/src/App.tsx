@@ -5,6 +5,7 @@ import './App.css'
 function App() {
   const [tableName, setTableName] = useState('');
   const [tableData, setTableData] = useState([]);
+  const [groupedData, setGroupedData] = useState([]); //state variables for grouped table data
   
 
 
@@ -62,7 +63,7 @@ function App() {
             console.error("we did get a response from the server to alter the table. Here is the error:", data);
             return;
           }
-          
+
            //Now fetch the table
            fetchCreateTable();
          } catch (error) {
@@ -91,6 +92,29 @@ function App() {
       }
         
     };
+
+    const handleGroupByCountry = async () => {
+      console.log("Youre inside of the handleGroupByCountry function");
+
+      try {
+        const response = await fetch(`http://localhost:8080/api/groupByCountry?tableName=${tableName.trim()}`,{
+          method: 'GET',
+        }
+      );
+        if(!response.ok){
+           const errorData = await response.json();
+           console.log("There was an error with your group by city request" + errorData);
+           return;
+        }
+
+        const data = await response.json();
+        setGroupedData(data);
+
+      } catch (error) {
+        console.log("Error fetching grouped table data: " + error)
+      }
+
+    }
    
   return(
     <>
@@ -152,7 +176,37 @@ function App() {
                         ))}
                     </tbody>
                 </table>
-            )}      
+            )}   
+
+
+      <h1>Group The Table</h1>    
+      <p>Click the button below to group the table by Country</p> 
+      <button onClick={handleGroupByCountry}>Group By Country</button>          
+      {groupedData.length > 0 && (
+                <table border="1" style={{ marginTop: '20px', width: '100%' }}>
+                    <thead>
+                        <tr>
+                            {/* Dynamically render column headers */}
+                            {Object.keys(groupedData[0]).map((key) => (
+                                <th key={key}>{key}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {/* Dynamically render rows */}
+                        {groupedData.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                                {Object.values(row).map((value, colIndex) => (
+                                    <td key={colIndex}>{value}</td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}   
+      
+
+
 
     </>
   )
