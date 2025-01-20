@@ -65,7 +65,6 @@ async function handleCreateTable(request: Request, response: Response): Promise<
 
         
         const tableName = sanitizeTableName(request.body.tableName);
-        console.log("The sanitized table name comes back as: " + tableName);
         if(!tableName){
             console.log("The table name did not come back sanitized!");
             response.status(400).json({ message: 'Invalid table name. Only alphanumeric characters and underscores are allowed.' });
@@ -91,7 +90,7 @@ async function handleCreateTable(request: Request, response: Response): Promise<
             console.log(`The table ${tableName} already exists.`);
             response.status(400).json({ message: `Table ${tableName} already exists.` });
             return;
-        }
+          }
           
             
 
@@ -106,21 +105,9 @@ async function handleCreateTable(request: Request, response: Response): Promise<
                                                                                 country VARCHAR(255)
 
                                                                                 )`;
-        const insertTableValuesQuery = `INSERT INTO \`${tableName}\` (first_name, last_name, email, city, country)
-        VALUES 
-        ('Alice', 'Smith', 'alice.smith@example.com', 'New York', 'USA'),
-        ('Bob', 'Johnson', 'bob.johnson@example.com', 'Los Angeles', 'USA'),
-        ('John', 'Doe', 'john.doe@example.com', 'Chicago', 'USA'),
-        ('Emily', 'Brown', 'emily.brown@example.com', 'Houston', 'USA'),
-        ('Michael', 'Williams', 'michael.williams@example.com', 'San Francisco', 'USA'),
-        ('Sophie', 'Wilson', 'sophie.wilson@example.com', 'Toronto', 'Canada'),
-        ('James', 'Taylor', 'james.taylor@example.com', 'London', 'UK'),
-        ('Minjun', 'Kim', 'minjun.kim@example.com', 'Seoul', 'Korea'),
-        ('Charlotte', 'Evans', 'charlotte.evans@example.com', 'Vancouver', 'Canada'),
-        ('Henry', 'Walker', 'henry.walker@example.com', 'Manchester', 'UK')`;
+
 
         await pool.query(createTableQuery);
-        await pool.query(insertTableValuesQuery);
 
         console.log(`The table name ${tableName} was created successfully!`);
         response.status(200).json({ message: `Table ${tableName} created successfully.` });
@@ -136,7 +123,76 @@ async function handleCreateTable(request: Request, response: Response): Promise<
         }
 
     }
-}
+};
+
+async function populateCustomers(request: Request, response: Response): Promise<void>{
+    console.log("We received your request to populate the table with customers for the table: " + request.body.tableName);
+    
+    try {
+        const pool = await getDatabasePool();
+        if(!pool){
+            response.status(500).send('Database connection not established');
+            return;
+        }else{
+            console.log("We received your request to connect to the database!");
+        }
+
+        
+        const tableName = sanitizeTableName(request.body.tableName);
+        if(!tableName){
+            console.log("The table name did not come back sanitized!");
+            response.status(400).json({ message: 'Invalid table name. Only alphanumeric characters and underscores are allowed.' });
+            return;
+        }
+        console.log("We sanitized the table name: " + tableName);       
+
+        /*
+          check if table exists first
+          * store default sql query with the table name the customer enters into a variable
+          * use the pool variable to execute the query and check for the table name the user entered
+          * if there is then the rows should be stored in a variable called rows
+          * use if statement to check if there are any rows, if so then return response that table exitst
+         */
+          const checkTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND LOWER(table_name) = ?`;
+      
+          const [rows] = await pool.query(checkTableQuery,[tableName.toLowerCase()]);
+          console.log("Query executed to check if table exists: ", checkTableQuery);      
+          console.log("After we checked the table query we got: " + JSON.stringify(rows));
+        
+            
+
+
+
+        const insertTableValuesQuery = `INSERT INTO \`${tableName}\` (first_name, last_name, email, city, country)
+        VALUES 
+        ('Alice', 'Smith', 'alice.smith@example.com', 'New York', 'USA'),
+        ('Bob', 'Johnson', 'bob.johnson@example.com', 'Los Angeles', 'USA'),
+        ('John', 'Doe', 'john.doe@example.com', 'Chicago', 'USA'),
+        ('Emily', 'Brown', 'emily.brown@example.com', 'Houston', 'USA'),
+        ('Michael', 'Williams', 'michael.williams@example.com', 'San Francisco', 'USA'),
+        ('Sophie', 'Wilson', 'sophie.wilson@example.com', 'Toronto', 'Canada'),
+        ('James', 'Taylor', 'james.taylor@example.com', 'London', 'UK'),
+        ('Minjun', 'Kim', 'minjun.kim@example.com', 'Seoul', 'Korea'),
+        ('Charlotte', 'Evans', 'charlotte.evans@example.com', 'Vancouver', 'Canada'),
+        ('Henry', 'Walker', 'henry.walker@example.com', 'Manchester', 'UK')`;
+
+        await pool.query(insertTableValuesQuery);
+
+        console.log(`The table name ${tableName} was popuplated successfully!`);
+        response.status(200).json({ message: `Table ${tableName} populated with customers successfully.` });
+
+
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error("Error in handleCreateTable:", error.message);
+            response.status(500).json({ message: 'An error occurred while populating the table with customers.', error: error.message });
+        } else {
+            console.error("Unknown error in handleCreateTable:", error);
+            response.status(500).json({ message: 'An unknown error occurred while populating the table with customers.' });
+        }
+
+    }
+};
 
 
 async function handleGetTableData(request: Request, response: Response): Promise<void>{
@@ -145,6 +201,7 @@ async function handleGetTableData(request: Request, response: Response): Promise
 
     if (!tableName || typeof tableName != 'string'){
         response.status(500).json({message: "Invalid table name"});
+        return;
     }
 
     try {
@@ -153,7 +210,7 @@ async function handleGetTableData(request: Request, response: Response): Promise
        const [rows] = await pool.query(query);
        response.status(200).json(rows);
     } catch (error) {
-        response.status(500).json({message: "An error occurred when we queried our table."});
+        response.status(500).json({message: 'An error occurred while trying to get the table data'});
     }
    
 }
@@ -196,7 +253,7 @@ const handleAlterTable = async (request: Request, response: Response): Promise<v
 
 const handleGroupByCountry = async (request: Request, response: Response): Promise<void> => {
     const {tableName} = request.query;
-    console.log("We received your request to group the table by country" + JSON.stringify(tableName));
+    console.log("We received your request to group the by country in the table named: " + JSON.stringify(tableName));
 
     try {
         const pool = await getDatabasePool();
@@ -218,14 +275,66 @@ const handleGroupByCountry = async (request: Request, response: Response): Promi
 };
 
 
+const handlegroupCountriesByFirstLetter = async (request: Request, response: Response): Promise<void> => {
+    console.log("We received your request to group countries by first letter");
+    const {tableName} = request.query;
+    console.log("The table name we want to group countries by first letter is: " + JSON.stringify(tableName));
+
+    
+    if(!tableName || typeof tableName !== 'string'){
+        response.status(400).json({message: 'Invalid table name came back after requesting to group countries by first letter'});
+        return;
+    }
+
+    try {
+        const pool = await getDatabasePool();
+        const query = `
+            SELECT 
+                country,
+                COUNT(*) AS customer_count
+            FROM 
+                \`${tableName}\`
+            WHERE 
+                country LIKE 'U%' 
+            GROUP BY 
+                country
+            HAVING 
+                COUNT(*) > 1
+            ORDER BY 
+                customer_count DESC
+            LIMIT 
+                2;        
+        `;
+
+        const [rows] = await pool.query(query);
+
+        console.log("The contents of the rows array when we requested to the database to group countries by first name is " + JSON.stringify(rows));
+     
+        response.status(200).json(rows);
+
+    } catch (error) {
+        console.log("There was an error trying to group table by first letter u " + error);
+        response.status(500).json({message: 'An error occurred while trying to group countries by first letter U'});
+
+    }
+
+    
+
+};
+
+
 // All route handlers go below here
 app.post('/api/createTable',handleCreateTable);
 
-app.get('/api/getTableData',handleGetTableData);
+app.post('/api/populateCustomers', populateCustomers);
 
 app.put('/api/alterTableData',handleAlterTable);
 
+app.get('/api/getTableData',handleGetTableData);
+
 app.get('/api/groupByCountry',handleGroupByCountry);
+
+app.get('/api/groupCountriesByFirstLetter',handlegroupCountriesByFirstLetter);
 
 app.use(cors({
     origin: 'http://localhost:8080', // Replace with your frontend's URL
