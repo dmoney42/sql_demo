@@ -125,6 +125,82 @@ async function handleCreateTable(request: Request, response: Response): Promise<
     }
 };
 
+
+async function handleCreateOrders(request: Request, response: Response): Promise<void>{
+
+    //we have to test the connection to the database every time
+    console.log("Received handleCreateOrders payload on backend:", request.body);
+
+    try {
+        const pool = await getDatabasePool();
+        if(!pool){
+            response.status(500).send('Database connection not established');
+            return;
+        }else{
+            console.log("We received your request to connect to the database!");
+        }
+
+        
+        const tableName = sanitizeTableName(request.body.tableName);
+        if(!tableName){
+            console.log("The table name did not come back sanitized!");
+            response.status(400).json({ message: 'Invalid table name. Only alphanumeric characters and underscores are allowed.' });
+            return;
+        }
+        console.log("We sanitized the table name: " + tableName);       
+
+        /*
+          check if table exists first
+          * store default sql query with the table name the customer enters into a variable
+          * use the pool variable to execute the query and check for the table name the user entered
+          * if there is then the rows should be stored in a variable called rows
+          * use if statement to check if there are any rows, if so then return response that table exitst
+         */
+          const checkTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND LOWER(table_name) = ?`;
+      
+          const [rows] = await pool.query(checkTableQuery,[tableName.toLowerCase()]);
+          console.log("Query executed to check if table exists: ", checkTableQuery);      
+          console.log("After we checked the table query we got: " + JSON.stringify(rows));
+        
+          
+          if (Array.isArray(rows) && rows.length > 0) {
+            console.log(`The table ${tableName} already exists.`);
+            response.status(400).json({ message: `Table ${tableName} already exists.` });
+            return;
+          }
+          
+            
+
+
+        //EXECUTE THE QUERY after sanitizing the table name
+        const createTableQuery = `CREATE TABLE IF NOT EXISTS \`${tableName}\` (
+                                order_id INT AUTO_INCREMENT PRIMARY KEY,
+                                customer_id INT NOT NULL,
+                                order_date DATE NOT NULL,
+                                total_amount DECIMAL(10, 2) NOT NULL,
+                                CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id)
+
+                                                                                )`;
+
+
+        await pool.query(createTableQuery);
+
+        console.log(`The table name ${tableName} was created successfully!`);
+        response.status(200).json({ message: `Table ${tableName} created successfully.` });
+
+
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error("Error in handleCreateTable:", error.message);
+            response.status(500).json({ message: 'An error occurred while creating the table.', error: error.message });
+        } else {
+            console.error("Unknown error in handleCreateTable:", error);
+            response.status(500).json({ message: 'An unknown error occurred while creating the table.' });
+        }
+
+    }
+};
+
 async function populateCustomers(request: Request, response: Response): Promise<void>{
     console.log("We received your request to populate the table with customers for the table: " + request.body.tableName);
     
@@ -193,6 +269,106 @@ async function populateCustomers(request: Request, response: Response): Promise<
 
     }
 };
+
+async function populateOrders(request: Request, response: Response): Promise<void>{
+    console.log("We received your request to populate the orders table!")
+    try {
+        const pool = await getDatabasePool();
+        if(!pool){
+            response.status(500).send('Database connection not established');
+            return;
+        }else{
+            console.log("We received your request to connect to the database!");
+        }
+
+        
+        const tableName = sanitizeTableName(request.body.tableName);
+        if(!tableName){
+            console.log("The table name did not come back sanitized!");
+            response.status(400).json({ message: 'Invalid table name. Only alphanumeric characters and underscores are allowed.' });
+            return;
+        }
+        console.log("We sanitized the table name: " + tableName);       
+
+        /*
+          check if table exists first
+          * store default sql query with the table name the customer enters into a variable
+          * use the pool variable to execute the query and check for the table name the user entered
+          * if there is then the rows should be stored in a variable called rows
+          * use if statement to check if there are any rows, if so then return response that table exitst
+         */
+          const checkTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND LOWER(table_name) = ?`;
+      
+          const [rows] = await pool.query(checkTableQuery,[tableName.toLowerCase()]);
+          console.log("Query executed to check if table exists: ", checkTableQuery);      
+          console.log("After we checked the table query we got: " + JSON.stringify(rows));
+        
+            
+
+
+
+        const insertTableValuesQuery = `INSERT INTO \`${tableName}\` (customer_id, order_date, total_amount)
+        VALUES 
+            (1, '2025-01-01', 250.00),
+            (2, '2025-01-02', 150.50), 
+            (3, '2025-01-03', 300.75), 
+            (4, '2025-01-04', 400.00),
+            (5, '2025-01-05', 500.25), 
+            (6, '2025-01-06', 600.10), 
+            (7, '2025-01-07', 700.50), 
+            (8, '2025-01-08', 800.00), 
+            (9, '2025-01-09', 900.75), 
+            (10, '2025-01-10', 1000.00)`;
+
+        await pool.query(insertTableValuesQuery);
+
+        console.log(`The table name ${tableName} was popuplated successfully!`);
+        response.status(200).json({ message: `Table ${tableName} populated with customers successfully.` });
+
+
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error("Error in handleCreateTable:", error.message);
+            response.status(500).json({ message: 'An error occurred while populating the table with customers.', error: error.message });
+        } else {
+            console.error("Unknown error in handleCreateTable:", error);
+            response.status(500).json({ message: 'An unknown error occurred while populating the table with customers.' });
+        }
+
+    }
+
+}
+
+async function handlejoinTables(request: Request, response: Response): Promise<void>{
+    console.log("We received your request to join the tables");
+    const {table1, table2} = request.query;
+    console.log("The name of the table1 in handljointables is " + table1);
+    console.log("The name of table2 in handlejoinTables is " + table2);
+
+    try {
+        const pool = await getDatabasePool();
+        const query = `
+            SELECT 
+            t1.customer_id AS customer_id, 
+            t1.first_name AS customer_first_name, 
+            t1.last_name AS customer_last_name,
+            t2.order_id AS order_id, 
+            t2.order_date AS order_date
+            FROM \`${table1}\` AS t1
+            INNER JOIN \`${table2}\` AS t2
+            ON t1.customer_id = t2.customer_id
+        `;
+
+        const [rows] = await pool.query(query);
+        response.status(200).json(rows);
+
+    } catch (error) {
+        console.error('Error performing INNER JOIN:', error);
+
+    }
+
+}
+
 
 
 async function handleGetTableData(request: Request, response: Response): Promise<void>{
@@ -326,7 +502,11 @@ const handlegroupCountriesByFirstLetter = async (request: Request, response: Res
 // All route handlers go below here
 app.post('/api/createTable',handleCreateTable);
 
+app.post('/api/createOrders', handleCreateOrders);
+
 app.post('/api/populateCustomers', populateCustomers);
+
+app.post('/api/populateOrders', populateOrders);
 
 app.put('/api/alterTableData',handleAlterTable);
 
@@ -335,6 +515,8 @@ app.get('/api/getTableData',handleGetTableData);
 app.get('/api/groupByCountry',handleGroupByCountry);
 
 app.get('/api/groupCountriesByFirstLetter',handlegroupCountriesByFirstLetter);
+
+app.get('/api/joinTables', handlejoinTables);
 
 app.use(cors({
     origin: 'http://localhost:8080', // Replace with your frontend's URL

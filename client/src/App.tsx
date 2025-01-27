@@ -9,6 +9,7 @@ function App() {
   const [groupedData, setGroupedData] = useState([]); //state variables for grouped table data
   const [groupedByFirstLetterData, setGroupedByFirstLetter] = useState([]); // State for grouped data
   const [successMessage, setSuccessMessage] = useState('');
+  const [joinedData, setJoinedData] = useState([]);
 
   
 
@@ -196,6 +197,37 @@ function App() {
 
      const handleJoinTables = async () =>{
       console.log("You are inside the handleJoinTables function. We want to join: " + tableName + " and " + tableName2);
+
+      if(!tableName2.trim()){
+        console.log("There was not table entered to be able to join. Please enter a table name.");
+        alert("There was not table entered to be able to join. Please enter a table name.")
+        return;
+      }
+
+
+      try {
+       await fetch('http://localhost:8080/api/createOrders',{
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({tableName: tableName2.trim() })
+       });
+
+      await fetch('http://localhost:8080/api/populateOrders',{
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tableName: tableName2.trim() })
+      });
+
+      //now that we created the orders table and populated it,
+      const response = await fetch(`http://localhost:8080/api/joinTables?table1=${tableName}&table2=${tableName2.trim()}`)
+
+
+      const data = await response.json();
+      setJoinedData(data);
+
+      } catch (error) {
+        console.error('Error creating and joining tables:', error);
+      }
     
 
      }
@@ -339,7 +371,29 @@ function App() {
              onChange={handleInputChange2}
       />
       
-      <button onClick={handleJoinTables}>Create Second Table and Join</button>      
+      <button onClick={handleJoinTables}>Create Second Table and Join</button>
+
+            {/* Display joined data */}
+            {joinedData.length > 0 && (
+                <table border="1" style={{ marginTop: '20px', width: '100%' }}>
+                    <thead>
+                        <tr>
+                            {Object.keys(joinedData[0]).map((key) => (
+                                <th key={key}>{key}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {joinedData.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                                {Object.values(row).map((value, colIndex) => (
+                                    <td key={colIndex}>{value}</td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}     
 
     </>
   )
